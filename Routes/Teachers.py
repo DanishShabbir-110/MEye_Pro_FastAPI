@@ -4,11 +4,12 @@ from DB_Setup.getDatabase import get_db
 from Schemas.TeacherCHR_CAR import TeacherCHRReportItem,TeacherCHRResponse 
 from DB_Setup.connection import get_connection
 from Schemas.StudentAttendance import StudentAttendanceModel, StudentAttendanceResponse
+import pyodbc
 
 router=APIRouter(prefix="/teacher", tags=["Teacher"])
 
 @router.get("/TeacherCHR", response_model=TeacherCHRResponse)
-def teacherCHR_CAR(teacherID: str,conn = Depends(get_db)):
+def teacherCHR_CAR(teacherID: str,conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
     
@@ -62,7 +63,7 @@ def teacherCHR_CAR(teacherID: str,conn = Depends(get_db)):
 
 
 @router.get("/TeacherCHRByDate", response_model=TeacherCHRResponse)
-def teacher_chr_by_date_base(teacherID: str, date: str,conn = Depends(get_db)):
+def teacher_chr_by_date_base(teacherID: str, date: str,conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
 
@@ -119,7 +120,7 @@ def teacher_chr_by_date_base(teacherID: str, date: str,conn = Depends(get_db)):
         conn.close()
 
 @router.post("/StudentAttendance", response_model=StudentAttendanceResponse)
-def mark_student_attendance_response(attendance: StudentAttendanceModel,conn = Depends(get_db)):
+def mark_student_attendance_response(attendance: StudentAttendanceModel,conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
 

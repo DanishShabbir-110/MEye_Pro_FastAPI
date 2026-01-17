@@ -21,7 +21,7 @@ async def addStudent(
     discipline: str = Form(...),
     session: str = Form(...),
     student_pics: list[UploadFile] = File(...),
-    conn = Depends(get_db)
+    conn:pyodbc.Connection=Depends(get_db)
 ):
     # Face recognition ke liye exactly 4 images required hain
     if len(student_pics) != 4:

@@ -1,14 +1,14 @@
 from datetime import datetime
-import os
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from DB_Setup.getDatabase import get_db
 from Schemas.user import User
+import pyodbc
 from Schemas.StudentAttendance import ClaimAttendanceResponse
 
 router=APIRouter(prefix="/student", tags=["Student"])
 
 @router.put("/ClaimAttendance", response_model=ClaimAttendanceResponse)
-def claim_attendance_modern(regno: str, date: str, courseName: str, conn=Depends(get_db)):
+def claim_attendance_modern(regno: str, date: str, courseName: str, conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
 

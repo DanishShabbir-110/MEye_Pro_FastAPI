@@ -13,6 +13,7 @@ from Schemas.rescheduleClass import RescheduleModel,RescheduleInput
 from Schemas.TeacherCHR_CAR import TeacherCHR,TeacherCHRInput, TeacherCHRReport
 from Schemas.user import User
 from Routes.Face_encodings import save_face_encodings_from_paths
+import pyodbc
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 base_folder="Assetes/Teachers"
@@ -23,7 +24,7 @@ async def addTeacher(
     name: str = Form(...),
     Password: str = Form(...),
     teachers_pics: list[UploadFile] = File(...),
-    conn = Depends(get_db)
+    conn:pyodbc.Connection=Depends(get_db)
 ):
     cursor = conn.cursor()
 
@@ -117,7 +118,7 @@ async def addDatacellStaff(
     name: str,
     Password: str,
     profileImg: UploadFile,
-    conn=Depends(get_db)
+    conn:pyodbc.Connection=Depends(get_db)
 ):
     if conn is None:
         return {"Error": "Database connection not built!"}
@@ -167,7 +168,7 @@ async def addAdminStaff(
     name: str,
     Password: str,
     profileImg: UploadFile,
-    conn=Depends(get_db)
+    conn:pyodbc.Connection=Depends(get_db)
 ):
     if conn is None:
         return {"Error": "Database connection not built!"}
@@ -214,7 +215,7 @@ async def addAdminStaff(
 @router.post("/prescheduleClass")
 async def prescheduleClass(
     data: PrescheduleInput,
-    conn=Depends(get_db)
+    conn:pyodbc.Connection=Depends(get_db)
 ):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection not established")
@@ -320,7 +321,7 @@ async def prescheduleClass(
 @router.post("/RescheduleClass")
 async def rescheduleClass(
     data: RescheduleInput,
-    conn=Depends(get_db)
+    conn:pyodbc.Connection=Depends(get_db)
 ):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection not established")
@@ -427,7 +428,7 @@ async def rescheduleClass(
         cursor.close()
 
 @router.post("/swapClass")
-async def swapClass(swap: SwapModelInput, conn=Depends(get_db)):
+async def swapClass(swap: SwapModelInput, conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
     
@@ -511,7 +512,7 @@ async def swapClass(swap: SwapModelInput, conn=Depends(get_db)):
 
 ## Generate the CHR 
 @router.post("/generateCHR")
-async def generateCHR(input: TeacherCHRInput, conn=Depends(get_db)):
+async def generateCHR(input: TeacherCHRInput, conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
     
@@ -569,7 +570,7 @@ async def generateCHR(input: TeacherCHRInput, conn=Depends(get_db)):
 
 
 @router.post("/AddDVR")
-async def add_dvr(dvr: DVRModelInput, conn=Depends(get_db)):
+async def add_dvr(dvr: DVRModelInput, conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
 
@@ -610,7 +611,7 @@ async def add_dvr(dvr: DVRModelInput, conn=Depends(get_db)):
         cursor.close() 
 
 @router.post("/addCamera")
-async def add_camera(cam: CameraModelInput, conn=Depends(get_db)):
+async def add_camera(cam: CameraModelInput, conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
 
@@ -666,7 +667,7 @@ async def add_camera(cam: CameraModelInput, conn=Depends(get_db)):
         cursor.close()
         
 @router.get("/SitAllTimeLecture", response_model=List[TeacherCHRReport])
-def getTeacherCHR_by_SitTime(conn=Depends(get_db)):
+def getTeacherCHR_by_SitTime(conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
     try:
@@ -708,7 +709,7 @@ def getTeacherCHR_by_SitTime(conn=Depends(get_db)):
         cursor.close()
 
 @router.get("/StandAllTimeLecture", response_model=List[TeacherCHRReport])
-def getTeacherCHR_by_StandTime(conn=Depends(get_db)):
+def getTeacherCHR_by_StandTime(conn:pyodbc.Connection=Depends(get_db)):
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
     try:
