@@ -7,7 +7,7 @@ from DB_Setup.getDatabase import get_db
 from Schemas.DVR import  DVRModelInput
 from Schemas.SWAP import SwapModelInput
 from Schemas.Teachers import Teacher
-from Schemas.camera import Camera, CameraModelInput
+from Schemas.camera import CameraModelInput
 from Schemas.prescheduleClass import PrescheduleModel,PrescheduleInput
 from Schemas.rescheduleClass import RescheduleModel,RescheduleInput
 from Schemas.TeacherCHR_CAR import TeacherCHR,TeacherCHRInput, TeacherCHRReport

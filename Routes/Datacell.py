@@ -2,9 +2,12 @@ from datetime import datetime
 import os
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from DB_Setup.getDatabase import get_db
+from DB_Setup.connection import get_connection
 from Schemas.user import User
 from Schemas.Student import Student
+from Schemas.enrollment import SingleEnrollmentInput
 from Routes.Face_encodings import save_face_encodings_from_paths
+import pyodbc
 
 route = APIRouter(prefix="/datacell", tags=["DataCell"])
 BASE_FOLDER = "Assetes/Students"
@@ -16,6 +19,7 @@ async def addStudent(
     name: str = Form(...),
     Password: str = Form(...),
     discipline: str = Form(...),
+    session: str = Form(...),
     student_pics: list[UploadFile] = File(...),
     conn = Depends(get_db)
 ):
@@ -87,10 +91,10 @@ async def addStudent(
         )
         conn.commit()
 
-        student_obj = Student(Regno=Regno, Discipline=discipline)
+        student_obj = Student(Regno=Regno, Discipline=discipline, Session=session)
         cursor.execute(
-            "INSERT INTO Student (Regno, Discipline) VALUES (?, ?)",
-            (student_obj.Regno, student_obj.Discipline)
+            "INSERT INTO Student (Regno, Discipline,Session) VALUES (?, ?, ?)",
+            (student_obj.Regno, student_obj.Discipline, student_obj.Session)
         )
         conn.commit()
 
@@ -108,3 +112,31 @@ async def addStudent(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@route.post("/singleEnrollmentofStudent")
+async def singleEnrollmentofStudent(
+    enrollment:SingleEnrollmentInput,
+    conn:pyodbc.Connection=Depends(get_db)
+):
+    if conn is None:
+        return {"Error": "connection not built"}
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT UID FROM [User] WHERE UID = ?", (enrollment.Regno,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=400, detail=f"No Student with this RegNo: {enrollment.Regno}")
+        
+        cursor.execute("select CId from Course where [Course Name]=?",(enrollment.courseName,))
+        row=cursor.fetchone()
+        if row is None:
+            raise HTTPException(status_code=400, detail=f"No course offered with this Name!")
+        courseId=row[0]
+        insert_query="insert into Enrollment ([Student Id],[Course Id],section,Semester,Session) values(?,?,?,?,?)"
+        cursor.execute(insert_query,(enrollment.Regno,courseId,enrollment.section,enrollment.semester,enrollment.session))
+        conn.commit()
+        cursor.close()
+        return {"Enrolled Course Success":enrollment}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+      
