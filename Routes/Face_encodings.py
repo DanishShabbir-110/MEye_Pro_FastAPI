@@ -5,8 +5,6 @@ from typing import List
 from fastapi import APIRouter, UploadFile, File
 import face_recognition
 import numpy as np
-import cv2
-
 def process_image_get_encoding_from_path(image_path: str):
     try:
         image = face_recognition.load_image_file(image_path)
