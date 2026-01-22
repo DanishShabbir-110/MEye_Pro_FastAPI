@@ -114,27 +114,31 @@ async def addStudent(
 
 @route.post("/singleEnrollmentofStudent")
 async def singleEnrollmentofStudent(
-    enrollment:SingleEnrollmentInput,
+    Regno: str = Form(...),
+    courseName: str = Form(...),
+    section: str = Form(...),
+    semester: int = Form(...),
+    session: str = Form(...),
     conn:pyodbc.Connection=Depends(get_db)
 ):
     if conn is None:
         return {"Error": "connection not built"}
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT UID FROM [User] WHERE UID = ?", (enrollment.Regno,))
+        cursor.execute("SELECT UID FROM [User] WHERE UID = ?", (Regno,))
         if not cursor.fetchone():
-            raise HTTPException(status_code=400, detail=f"No Student with this RegNo: {enrollment.Regno}")
+            raise HTTPException(status_code=400, detail=f"No Student with this RegNo: {Regno}")
         
-        cursor.execute("select CId from Course where [Course Name]=?",(enrollment.courseName,))
+        cursor.execute("select CId from Course where [Course Name]=?",(courseName,))
         row=cursor.fetchone()
         if row is None:
             raise HTTPException(status_code=400, detail=f"No course offered with this Name!")
         courseId=row[0]
         insert_query="insert into Enrollment ([Student Id],[Course Id],section,Semester,Session) values(?,?,?,?,?)"
-        cursor.execute(insert_query,(enrollment.Regno,courseId,enrollment.section,enrollment.semester,enrollment.session))
+        cursor.execute(insert_query,(Regno,courseId,section,semester,session))
         conn.commit()
         cursor.close()
-        return {"Enrolled Course Success":enrollment}
+        return {"Enrolled Course Success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
       
