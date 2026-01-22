@@ -24,6 +24,15 @@ async def addStudent(
     conn:pyodbc.Connection=Depends(get_db)
 ):
     # Face recognition ke liye exactly 4 images required hain
+    if conn is None:
+        return {"Error": "connection not built"}
+    
+    cursor = conn.cursor()
+
+        # Duplicate student entry se bachne ke liye check
+    cursor.execute("SELECT UID FROM [User] WHERE UID = ?", (Regno,))
+    if cursor.fetchone():
+        raise HTTPException(status_code=400, detail="Student already exists!")
     if len(student_pics) != 4:
         raise HTTPException(status_code=400, detail="Exactly 4 images required")
 
@@ -40,6 +49,8 @@ async def addStudent(
 
         images_path.append(file_path)
 
+        with open(file_path, "wb") as image:
+            image.write(await pic.read())
 
         student_pics_url.append(file_path.replace("\\", "/"))
 
@@ -48,18 +59,7 @@ async def addStudent(
 
     profile_url = student_pics_url[0]  # First image profile pic ke liye
 
-
-    if conn is None:
-        return {"Error": "connection not built"}
-
     try:
-        cursor = conn.cursor()
-
-        # Duplicate student entry se bachne ke liye check
-        cursor.execute("SELECT UID FROM [User] WHERE UID = ?", (Regno,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="Student already exists!")
-
         user_obj = User(
             UID=Regno,
             Full_Name=name,
@@ -105,8 +105,6 @@ async def addStudent(
             conn.commit()
 
         cursor.close()
-        with open(file_path, "wb") as image:
-            image.write(await pic.read())
 
         return {"Student Registered!": user_obj}
 
