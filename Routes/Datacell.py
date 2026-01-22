@@ -40,8 +40,6 @@ async def addStudent(
 
         images_path.append(file_path)
 
-        with open(file_path, "wb") as image:
-            image.write(await pic.read())
 
         student_pics_url.append(file_path.replace("\\", "/"))
 
@@ -107,6 +105,8 @@ async def addStudent(
             conn.commit()
 
         cursor.close()
+        with open(file_path, "wb") as image:
+            image.write(await pic.read())
 
         return {"Student Registered!": user_obj}
 
