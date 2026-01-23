@@ -1,5 +1,7 @@
 from datetime import datetime
+import io
 import os
+from turtle import pd
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from DB_Setup.getDatabase import get_db
 from DB_Setup.connection import get_connection
@@ -8,6 +10,8 @@ from Schemas.Student import Student
 from Schemas.enrollment import SingleEnrollmentInput
 from Routes.Face_encodings import save_face_encodings_from_paths
 import pyodbc
+import pandas as pd
+import uuid 
 
 route = APIRouter(prefix="/datacell", tags=["DataCell"])
 BASE_FOLDER = "Assetes/Students"
@@ -141,4 +145,84 @@ async def singleEnrollmentofStudent(
         return {"Enrolled Course Success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-      
+
+
+@route.post("/UploadEnrollmentExcel")
+async def upload_enrollment_excel(
+    file: UploadFile = File(...),
+    conn: pyodbc.Connection = Depends(get_db)
+):
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Please upload an Excel file.")
+
+    try:
+        contents = await file.read()
+        df = pd.read_excel(io.BytesIO(contents))
+
+        required_columns = ['StudentId', 'CourseId', 'Session', 'Semester', 'Section']
+        if not all(col in df.columns for col in required_columns):
+            raise HTTPException(status_code=400, detail=f"Excel must have columns: {required_columns}")
+
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM Enrollment")
+        current_count = cursor.fetchone()[0]
+
+        success_count = 0
+        errors = []
+
+        for index, row in df.iterrows():
+            try:
+                student_id = str(row['StudentId'])
+                course_id = str(row['CourseId'])
+                session = str(row['Session'])
+                semester = int(row['Semester'])
+                section = str(row['Section'])
+
+                cursor.execute("""
+                    SELECT 1 FROM Enrollment 
+                    WHERE [Student Id] = ? AND [Course Id] = ? AND [Session] = ? AND [Semester] = ? AND [Section] = ?
+                """, (student_id, course_id, session, semester, section))
+
+                if cursor.fetchone():
+                    errors.append(f"Row {index+2}: Record already exists in database.")
+                    continue
+
+                cursor.execute("SELECT 1 FROM Student WHERE Regno = ?", (student_id,))
+                if not cursor.fetchone():
+                    errors.append(f"Row {index+2}: Student {student_id} not found.")
+                    continue
+
+                cursor.execute("SELECT 1 FROM Course WHERE CId = ?", (course_id,))
+                if not cursor.fetchone():
+                    errors.append(f"Row {index+2}: Course {course_id} not found.")
+                    continue
+
+                current_count += 1
+                enrollment_id = f"Enroll-{current_count}"
+
+                insert_query = """
+                    INSERT INTO Enrollment 
+                    ([Student Id], [Course Id], section,Semester,Session) 
+                    VALUES (?, ?, ?, ?, ?)
+                """
+                cursor.execute(insert_query, (
+                    student_id, course_id, section, semester,session 
+                ))
+                success_count += 1
+
+            except Exception as e:
+                errors.append(f"Row {index+2}: {str(e)}")
+
+        conn.commit()
+        cursor.close()
+
+        return {
+            "message": f"Successfully enrolled {success_count} students.",
+            "total_rows": len(df),
+            "errors": errors
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
