@@ -1,4 +1,4 @@
-from DB_Setup.connection import get_connection
+from DB_Setup.connection import get_connection,get_connection_for_face_Recognition
 
 
 def get_db():
@@ -9,3 +9,4 @@ def get_db():
         yield conn
     finally:
         conn.close()
+       
