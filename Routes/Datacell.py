@@ -303,7 +303,7 @@ async def upload_allocation_excel(
 
         success_count = 0
         errors = []
-
+        
         for index, row in df.iterrows():
             try:
                 c_id = str(row['CourseId'])
