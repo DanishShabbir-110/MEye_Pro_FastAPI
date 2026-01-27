@@ -11,6 +11,7 @@ from Schemas.enrollment import SingleEnrollmentInput
 from Routes.Face_encodings import save_face_encodings_from_paths
 import pyodbc
 import pandas as pd
+from Schemas.Allocation import AllocationInput
 import uuid 
 
 route = APIRouter(prefix="/datacell", tags=["DataCell"])
@@ -226,3 +227,119 @@ async def upload_enrollment_excel(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@route.post("/singleAllocation")
+async def single_allocation(
+    allocation: AllocationInput, 
+    conn: pyodbc.Connection = Depends(get_db)
+):
+    if conn is None:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    
+    try:
+        cursor = conn.cursor()
+
+        
+        cursor.execute("SELECT CId FROM Course WHERE [Course Name] = ?", (allocation.courseName,))
+        course_row = cursor.fetchone()
+        if not course_row:
+            raise HTTPException(status_code=404, detail="Course not found")
+        course_id = course_row[0]
+
+        
+        cursor.execute("SELECT UID FROM [User] WHERE [Full Name] = ? AND Role = 'Teacher'", (allocation.teacherName,))
+        teacher_row = cursor.fetchone()
+        if not teacher_row:
+            raise HTTPException(status_code=404, detail="Teacher not found")
+        teacher_id = teacher_row[0]
+        
+        check_query = """
+            SELECT 1 FROM Allocation 
+            WHERE [Cid] = ? AND [Tid] = ? AND [Section] = ? 
+            AND Semester = ? AND [Session] = ?
+        """
+        cursor.execute(check_query, (course_id, teacher_id, allocation.section, allocation.semester, allocation.session))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="This allocation already exists!")
+
+       
+        insert_query = """
+            INSERT INTO Allocation 
+            ([Cid], [Tid], Discipline, [Session], Section, Semester)
+            VALUES ( ?, ?, ?, ?, ?, ?)
+        """
+        cursor.execute(insert_query, (
+             course_id, teacher_id, allocation.discipline, 
+            allocation.session, allocation.section, allocation.semester
+        ))
+        
+        conn.commit()
+        cursor.close()
+        return {"Allocation Success":allocation}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@route.post("/UploadAllocationExcel")
+async def upload_allocation_excel(
+    file: UploadFile = File(...),
+    conn: pyodbc.Connection = Depends(get_db)
+):
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Please upload an Excel file.")
+
+    try:    
+        contents = await file.read()
+        df = pd.read_excel(io.BytesIO(contents))
+
+       
+        required_columns = ['CourseId', 'TeacherId', 'Discipline', 'Session', 'Section', 'Semester']
+        if not all(col in df.columns for col in required_columns):
+            raise HTTPException(status_code=400, detail=f"Required columns: {required_columns}")
+
+        cursor = conn.cursor()
+        
+
+        success_count = 0
+        errors = []
+
+        for index, row in df.iterrows():
+            try:
+                c_id = str(row['CourseId'])
+                t_id = str(row['TeacherId'])
+                disc = str(row['Discipline'])
+                sess = str(row['Session'])
+                sect = str(row['Section'])
+                sem = int(row['Semester'])
+
+                # Duplicate Check
+                cursor.execute("""
+                    SELECT 1 FROM Allocation 
+                    WHERE [Cid] = ? AND [Tid] = ? AND Section = ? AND Semester = ? AND [Session] = ?
+                """, (c_id, t_id, sect, sem, sess))
+
+                if cursor.fetchone():
+                    errors.append(f"Row {index+2}: Allocation already exists.")
+                    continue
+                
+                cursor.execute("""
+                    INSERT INTO Allocation 
+                    (Cid, Tid, Discipline, [Session], Section, Semester)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (c_id, t_id, disc, sess, sect, sem))
+                
+                success_count += 1
+
+            except Exception as e:
+                errors.append(f"Row {index+2}: {str(e)}")
+
+        conn.commit()
+        cursor.close()
+
+        return {
+            "message": f"Successfully allocated {success_count} records.",
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

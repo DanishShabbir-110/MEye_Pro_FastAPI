@@ -72,7 +72,6 @@ Discipline varchar (50),
 [Session] varchar (50),
 Section varchar (5),
 Semester int,
-[Year] int,
 constraint fk_Teacher foreign key (Tid) references Teacher (TID),
 constraint fk_Course foreign key (Cid) references Course (CId),
 )
