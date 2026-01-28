@@ -1,9 +1,12 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from Routes import Admin,Datacell, Teachers,Student,auth
 from FaceRecognition import faceRecognition
 
 
 app=FastAPI(title="MEYE Pro")
+app.mount("/Assetes", StaticFiles(directory="Assetes"), name="static")
+
 @app.get("/")
 def root():
     return {"Message":"MEYE Pro API is Running on Port 8000"}

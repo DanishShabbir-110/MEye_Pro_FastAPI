@@ -3,6 +3,7 @@ import os
 from turtle import pd
 from typing import List
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile,status
+from fastapi.staticfiles import StaticFiles
 from DB_Setup.getDatabase import get_db
 from Schemas.DVR import  DVRModelInput
 from Schemas.SWAP import SwapModelInput
@@ -17,6 +18,7 @@ import pyodbc
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 base_folder="Assetes/Teachers"
+
 
 @router.post("/AddTeacher")
 async def addTeacher(
@@ -710,6 +712,7 @@ def getTeacherCHR_by_SitTime(conn:pyodbc.Connection=Depends(get_db)):
 
 @router.get("/StandAllTimeLecture", response_model=List[TeacherCHRReport])
 def getTeacherCHR_by_StandTime(conn:pyodbc.Connection=Depends(get_db)):
+    
     if conn is None:
         raise HTTPException(status_code=500, detail="Database connection failed")
     try:
@@ -749,3 +752,44 @@ def getTeacherCHR_by_StandTime(conn:pyodbc.Connection=Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()
+
+@router.get("/getAllTeachers")
+def getAllTeachers(
+    conn: pyodbc.Connection = Depends(get_db)
+):
+    if conn is None:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+
+    try:
+        cursor = conn.cursor()
+
+        query = """
+            SELECT [Full Name], [Profile Image Url]
+            FROM [User]
+            WHERE Role = 'Teacher'
+        """
+
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        if not rows:
+            raise HTTPException(status_code=404, detail="No Teachers Registered")
+
+        teachers = []
+        for row in rows:
+           teachers.append({
+                "name": row[0],
+                "pic": row[1]
+            })
+
+        cursor.close()
+
+        return {
+            "total": len(teachers),
+            "teachers": teachers
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+ 
+        
